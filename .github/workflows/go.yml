@@ -15,12 +15,12 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26.2'
+          go-version: "1.26.2"
 
       - name: Build
         run: |
           mkdir dist
-          go build -o dist/eventmcp ./main
+          go build -o dist/eventmcp .
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
