@@ -306,20 +306,3 @@ func main() {
 		log.Fatal(err)
 	}
 }
-
-// ctx := context.Background()
-//
-// event := &calendar.Event{
-// 	Summary:     "test",
-// 	Location:    "India",
-// 	Description: "Delete as soon as you see",
-// 	Start: &calendar.EventDateTime{
-// 		DateTime: time.Now().Format(time.RFC3339),
-// 		TimeZone: "Asia/Kolkata",
-// 	},
-// 	End: &calendar.EventDateTime{
-// 		DateTime: time.Now().Format(time.RFC3339),
-// 		TimeZone: "Asia/Kolkata",
-// 	},
-// }
-// creatEvent(ctx, event)
