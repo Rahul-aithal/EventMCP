@@ -81,6 +81,6 @@ deleteEventByNameAndDate {
 
 ## Notes
 
-- Refresh token is stored in your user config dir (e.g. `~/.config/sechduler/refresh_token.txt` on Linux).
+- Refresh token is stored in your user config dir (e.g. `~/.config/scheduler/refresh_token.txt` on Linux).
 - Uses your primary Google Calendar.
 - Event timestamps use the Asia/Kolkata timezone.
