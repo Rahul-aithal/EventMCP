@@ -25,6 +25,11 @@ type AddEventMCP struct {
 type ListEventsMcp struct {
 	Limit int `json:"list"`
 }
+type DeleteEventMcp struct {
+	Name    string
+	MaxDate time.Time
+	MinDate time.Time
+}
 
 var config *oauth2.Config
 
@@ -48,12 +53,35 @@ func addEvent(ctx context.Context, req *mcp.CallToolRequest, input AddEventMCP) 
 	}, nil, nil
 }
 
-func listEventsWithLimit(ctx context.Context, req *mcp.CallToolRequest, input ListEventsMcp) (*mcp.CallToolResult, any, error) {
+func listEventsByLimit(ctx context.Context, req *mcp.CallToolRequest, input ListEventsMcp) (*mcp.CallToolResult, any, error) {
 	log.Println("Listing events")
+	if input.Limit < 1 {
+		log.Fatal("0 limit is not allowed")
+	}
 	events := listEvents(ctx, input.Limit)
-	event_text := strings.Join(events, "\n-")
+	var builder strings.Builder
+
+	for i, event := range events {
+		fmt.Fprintf(&builder, "%d. %s\n", i+1, event)
+	}
+
+	event_text := builder.String()
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{&mcp.TextContent{Text: event_text}},
+	}, nil, nil
+}
+
+func deleteEventByName(ctx context.Context, req *mcp.CallToolRequest, input DeleteEventMcp) (*mcp.CallToolResult, any, error) {
+	log.Println("Listing events")
+	result := deleteEvent(ctx, input)
+	resp := input.Name
+	if result {
+		resp = resp + " successfully deleted\n"
+	} else {
+		resp = resp + " couldn't not be deleted\n"
+	}
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{Text: resp}},
 	}, nil, nil
 }
 
@@ -72,6 +100,32 @@ func creatEvent(ctx context.Context, event *calendar.Event) {
 
 	log.Printf("Event Created from calendar:%v\n", event.HtmlLink)
 
+}
+func deleteEvent(ctx context.Context, event_data DeleteEventMcp) bool {
+
+	calendarId := "primary"
+	calendarService, err := createCalService(ctx)
+
+	if err != nil {
+		log.Fatalf("Error while creating calendar service")
+		return false
+	}
+	events, err := calendarService.Events.List("primary").ShowDeleted(false).
+		SingleEvents(true).TimeMin(event_data.MinDate.Format(time.RFC3339)).TimeMax(event_data.MaxDate.Format(time.RFC3339)).
+		MaxResults(1).OrderBy("startTime").Q(event_data.Name).Do()
+
+	if err != nil {
+		log.Fatalf("Error while searching calendar event ")
+	}
+	err = calendarService.Events.Delete(calendarId, events.Items[0].Id).Do()
+	if err != nil {
+		log.Fatalf("Unable to delete a event. %v\n", err)
+		return false
+	}
+
+	log.Printf("Event Delete from calendar:%v\n", events.Items[0].Summary)
+
+	return true
 }
 func login(ctx context.Context) (*oauth2.Token, error) {
 	configdir, _ := os.UserConfigDir()
@@ -155,15 +209,12 @@ func listEvents(ctx context.Context, limit int) []string {
 		log.Fatalf("Error while creating calendar service")
 	}
 	events, err := calendarService.Events.List("primary").ShowDeleted(false).
-		SingleEvents(true).TimeMin(t).MaxResults(10).OrderBy("startTime").Do()
+		SingleEvents(true).TimeMin(t).MaxResults(int64(limit)).OrderBy("startTime").Do()
 
 	if err != nil {
 		log.Fatalf("Unable to retrieve next ten of the user's events: %v", err)
 	}
 	log.Println("Upcoming events:")
-	if limit > len(events.Items) {
-		limit = len(events.Items)
-	}
 
 	event_slice := make([]string, limit)
 	if len(events.Items) == 0 {
@@ -172,30 +223,55 @@ func listEvents(ctx context.Context, limit int) []string {
 
 		for index := range limit {
 			item := events.Items[index]
+
 			date := item.Start.DateTime
-			if date == "" {
+			if date != "" {
+				t, err := time.Parse(time.RFC3339, date)
+				if err != nil {
+					log.Fatalf("Error while parsing time %v", err)
+				}
+				date = t.Format("02-01-2006 03:04:05 PM")
+			} else {
 				date = item.Start.Date
 			}
-			event_slice = append(event_slice, fmt.Sprintf("%v (%v)\n", item.Summary, date))
+			value := fmt.Sprintf("%v (%v)\n", item.Summary, date)
+			if len(value) == 0 {
+				continue
+			}
+			event_slice[index] = value
 		}
 	}
 	return event_slice
 }
 
 func main() {
-	file, ferr := filepath.Abs("code/scheduler/.env")
+	exe, err := os.Executable()
 
-	if ferr == nil {
-		err := godotenv.Load(file)
-		if err != nil {
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	exeDir := filepath.Dir(exe)
+	file := filepath.Join(exeDir, ".env")
+
+	if _, err := os.Stat(file); err == nil {
+
+		if err := godotenv.Load(file); err != nil {
 			log.Fatalf("Error while loading env file %v", err)
 			return
 		}
+
 		log.Printf("Env file loaded sucessfully")
+
+	} else {
+
+		log.Println("No env file found. Pass:")
+		log.Println("GOOGLE_CLIENT_ID")
+		log.Println("GOOGLE_CLIENT_SECRET")
+
 	}
-	if ferr != nil {
-		log.Println("No env file found make sure env is iassed while calling the mcp,\nGOOGLE_CLIENT_ID: \nGOOGLE_CLIENT_SECRET: \nare the names")
-	}
+
 	google_client_id := os.Getenv("GOOGLE_CLIENT_ID")
 	google_client_secret := os.Getenv("GOOGLE_CLIENT_SECRET")
 
@@ -220,7 +296,11 @@ func main() {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "listEvents",
 		Description: "Lists all the future events from now",
-	}, listEventsWithLimit)
+	}, listEventsByLimit)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "deleteEventByNameAndDate",
+		Description: "Deletes the event by name and start and end date",
+	}, deleteEventByName)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)
