@@ -302,7 +302,7 @@ func main() {
 		Description: "Deletes the event by name and start and end date",
 	}, deleteEventByName)
 
-	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
-		log.Fatal(err)
+	if xerr := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
+		log.Fatal(xerr)
 	}
 }
