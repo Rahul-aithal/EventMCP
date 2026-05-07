@@ -209,9 +209,9 @@ func createCalService(ctx context.Context) (*calendar.Service, error) {
 func login(ctx context.Context) (*oauth2.Token, error) {
 	configdir, _ := os.UserConfigDir()
 
-	refreshTokenPath := filepath.Join(configdir, "sechduler", "refresh_token.txt")
+	refreshTokenPath := filepath.Join(configdir, "scheduler", "refresh_token.txt")
 
-	schedulerConfigDir := filepath.Join(configdir, "sechduler")
+	schedulerConfigDir := filepath.Join(configdir, "scheduler")
 	_, err := os.Stat(schedulerConfigDir)
 
 	if os.IsNotExist(err) {
