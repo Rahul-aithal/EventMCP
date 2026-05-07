@@ -208,7 +208,7 @@ func main() {
 	}
 
 	server := mcp.NewServer(&mcp.Implementation{
-		Name:    "Sechduler",
+		Name:    "Scheduler",
 		Version: "1.0.0",
 	}, nil)
 
