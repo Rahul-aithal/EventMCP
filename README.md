@@ -1,6 +1,6 @@
-# Scheduler
+# EventMCP (Scheduler)
 
-Small Google Calendar MCP server built in Go. A personal side project for quick calendar automation.
+Google Calendar MCP server built in Go for adding, listing, and deleting calendar events.
 
 ## Features
 
